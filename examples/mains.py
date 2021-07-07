@@ -65,6 +65,7 @@ if __name__ == '__main__':
                                  )
     early_stopper = EarlyStopper(num_trials=2, save_path=f'{args.save_dir}/{args.model_name}.pt')
     log_interval = 100
+    loss_list = []
     for epoch_i in range(args.epoch):
         model.train()
         total_loss = 0
@@ -77,6 +78,7 @@ if __name__ == '__main__':
             loss.backward()
             optimizer.step()
             total_loss += loss.item()
+            loss_list.append(loss.item())
             if (i + 1) % log_interval == 0:
                 tk0.set_postfix(loss=total_loss / log_interval)
                 total_loss = 0
@@ -88,3 +90,17 @@ if __name__ == '__main__':
     s = e.detach().numpy()
     p = s.reshape(s.shape[0], -1)
     # print(f'test auc: {auc}')
+    import matplotlib.pyplot as plt
+    plt.plot(range(len(loss_list)), loss_list)
+    plt.show()
+
+    model.eval()
+    targets, predicts = list(), list()
+    with torch.no_grad():
+        for fields, target in tqdm.tqdm(test_data_loader, smoothing=0, mininterval=1.0):
+            fields, target = fields.to(device), target.to(device)
+            y = model(fields)
+            targets.extend(target.tolist())
+            predicts.extend(y.tolist())
+    auc = roc_auc_score(targets, predicts)
+    print(f'test auc: {auc}')
